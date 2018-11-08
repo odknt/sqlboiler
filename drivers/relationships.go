@@ -67,7 +67,7 @@ func toOneRelationships(table Table, tables []Table) []ToOneRelationship {
 
 	for _, t := range tables {
 		for _, f := range t.FKeys {
-			if f.ForeignTable == table.Name && !t.IsJoinTable && f.Unique {
+			if f.ForeignTable == table.Name && !t.IsJoinTable && mustBeUnique(t, f) {
 				relationships = append(relationships, buildToOneRelationship(table, f, t, tables))
 			}
 
@@ -82,13 +82,26 @@ func toManyRelationships(table Table, tables []Table) []ToManyRelationship {
 
 	for _, t := range tables {
 		for _, f := range t.FKeys {
-			if f.ForeignTable == table.Name && (t.IsJoinTable || !f.Unique) {
+			if f.ForeignTable == table.Name && (t.IsJoinTable || !mustBeUnique(t, f)) {
 				relationships = append(relationships, buildToManyRelationship(table, f, t, tables))
 			}
 		}
 	}
 
 	return relationships
+}
+
+// mustBeUnique returns true if can build many relationship.
+func mustBeUnique(t Table, fKey ForeignKey) bool {
+	if t.PKey == nil || len(t.PKey.Columns) < 2 {
+		return fKey.Unique
+	}
+	for _, name := range t.PKey.Columns {
+		if name == fKey.Column {
+			return false
+		}
+	}
+	return fKey.Unique
 }
 
 func buildToOneRelationship(localTable Table, foreignKey ForeignKey, foreignTable Table, tables []Table) ToOneRelationship {
